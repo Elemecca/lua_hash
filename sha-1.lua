@@ -32,6 +32,10 @@ local function badd (left, right)
     return (left + right) % limit_32;
 end
 
+--- Packs an integer into a big-endian binary string.
+-- @param {number} value the number to be backed
+-- @param {number} bytes the length of the result in bytes
+-- @return {string} the encoded binary string
 local function pack_int (value, bytes)
     local result = '';
     for idx = 1, bytes do
@@ -41,12 +45,26 @@ local function pack_int (value, bytes)
     return result;
 end
 
+--- Unpacks an integer from a big-endian binary string.
+-- @param {string} value the string from which to unpack the integer
+-- @param {number} start the offset of the integer in the input string
+-- @param {number} bytes the length of the integer in bytes
+-- @return {number} the decoded integer value
+local function unpack_int (value, start, bytes)
+    local result = 0;
+    for round = 0, bytes - 1 do
+        result = result * 0x100 + value:byte( start + round );
+    end
+    return result;
+end
+
 local hashes_single = {};
 local hashes_chunked = {};
 
 ------------------------------------------------------------------------
 -- Algorithm: SHA-1                                                   -- 
--- specified in FIPS pub 180-1 (1995-04-17)                           --
+-- specified in FIPS publication 180-1 (1995-04-17)                   --
+-- http://www.itl.nist.gov/fipspubs/fip180-1.htm                      --
 ------------------------------------------------------------------------
 -- This implementation is dependent on byte order within an integer and
 -- thus will only behave correctly on little-endian platforms.
@@ -79,12 +97,10 @@ local function sha1_block (self, block)
     local E = self[ 'H4' ];
 
     for t = 0, 15 do
-        local b0, b1, b2, b3 = block:byte( 4 * t + 1, 4 * t + 4 );
-        W[ t ] = b0 * 0x01000000 + b1 * 0x00010000 + b2 * 0x00000100 + b3;
+        W[ t ] = unpack_int( block, t * 4 + 1, 4 );
 
         if debug then print( string.format(
-            "W[ %2d ] = { %02X %02X %02X %02X } = %08X",
-            t, b0, b1, b2, b3, W[ t ] ) );
+            "W[ %2d ] = %08X", t, W[ t ] ) );
         end
     end
 
