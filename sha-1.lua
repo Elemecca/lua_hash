@@ -1,5 +1,5 @@
 
-local debug = true;
+local debug = false;
 
 local limit_32 = 2^32;
 local limit_64 = 2^64;
@@ -126,7 +126,7 @@ end
 
 function sha1:feed (chunk)
     local length = #chunk;
-    self[ 'length' ] = self[ 'length' ] + 1;
+    self[ 'length' ] = self[ 'length' ] + length;
     local index = 1;
     
     -- if there are leftovers from the previous call, integrate them
@@ -165,8 +165,8 @@ function sha1:finish()
     -- hold can't be a full block, so it's always safe to do this
     hold = hold .. '\128';
 
-    -- pack the data length into a 64-bit binary integer
-    local length = pack_int( self[ 'length' ], 8 );
+    -- pack the data length in bits into a 64-bit binary integer
+    local length = pack_int( self[ 'length' ] * 8, 8 );
 
     -- if we can't fit the leftover data and the length into a single
     -- block, pad out the leftovers to a full block and process them
