@@ -89,26 +89,21 @@ end
 local function sha1_block (self, block)
     if debug then print( "start block" ); end
 
-    local W = {};
+    local W00, W01, W02, W03, W04, W05, W06, W07,
+            W08, W09, W10, W11, W12, W13, W14, W15;
     local A = self[ 'H0' ];
     local B = self[ 'H1' ];
     local C = self[ 'H2' ];
     local D = self[ 'H3' ];
     local E = self[ 'H4' ];
 
-    for t = 0, 15 do
-        W[ t ] = unpack_int( block, t * 4 + 1, 4 );
-
-        if debug then print( string.format(
-            "W[ %2d ] = %08X", t, W[ t ] ) );
-        end
-    end
-
-    for t = 16, 79 do
-        W[ t ] = brol( bxor( bxor( bxor( W[t-3], W[t-8] ), W[t-14] ), W[t-16] ), 1 );
-    end
-
     for t = 0, 79 do
+        if t < 16 then
+            W15 = unpack_int( block, t * 4 + 1, 4 );
+        else
+            W15 = brol( bxor( bxor( bxor( W12, W07 ), W01 ), W15 ), 1 );
+        end
+
         local f, K;
         if t <= 19 then
             f = bor( band( B, C ), band( bnot( B ), D ) );
@@ -124,8 +119,14 @@ local function sha1_block (self, block)
             K = 0xCA62C1D6;
         end
 
-        local temp = badd( badd( badd( badd( brol( A, 5 ), f ), E ), W[ t ] ), K );
+        local temp = badd( badd( badd( badd( brol( A, 5 ), f ), E ), W15 ), K );
         E = D; D = C; C = brol( B, 30 ); B = A; A = temp;
+
+        -- rotate the W-queue left one
+        W00, W01, W02, W03, W04, W05, W06, W07,
+                W08, W09, W10, W11, W12, W13, W14, W15
+            = W01, W02, W03, W04, W05, W06, W07, W08,
+                W09, W10, W11, W12, W13, W14, W15, W00;
 
         if debug then print( string.format(
             "t = %2d: %08X    %08X    %08X    %08X    %08X",
