@@ -1,4 +1,6 @@
 
+local debug = true;
+
 local limit_32 = 2^32;
 local limit_64 = 2^64;
 
@@ -50,7 +52,7 @@ local hashes_chunked = {};
 -- thus will only behave correctly on little-endian platforms.
 
 local sha1 = {};
-
+sha1.__index = sha1;
 
 function sha1_new()
     local this = {};
@@ -67,6 +69,8 @@ function sha1_new()
 end
 
 local function sha1_block (self, block)
+    if debug then print( "start block" ); end
+
     local W = {};
     local A = self[ 'H0' ];
     local B = self[ 'H1' ];
@@ -75,8 +79,13 @@ local function sha1_block (self, block)
     local E = self[ 'H4' ];
 
     for t = 0, 15 do
-        local b0, b1, b2, b3 = block:byte( 4 * t, 4 * t + 3 );
-        W[ t ] = b0 * 0x1000 + b1 * 0x100 + b2 * 0x10 + b3;
+        local b0, b1, b2, b3 = block:byte( 4 * t + 1, 4 * t + 4 );
+        W[ t ] = b0 * 0x01000000 + b1 * 0x00010000 + b2 * 0x00000100 + b3;
+
+        if debug then print( string.format(
+            "W[ %2d ] = { %02X %02X %02X %02X } = %08X",
+            t, b0, b1, b2, b3, W[ t ] ) );
+        end
     end
 
     for t = 16, 79 do
@@ -101,6 +110,11 @@ local function sha1_block (self, block)
 
         local temp = badd( badd( badd( badd( brol( A, 5 ), f ), E ), W[ t ] ), K );
         E = D; D = C; C = brol( B, 30 ); B = A; A = temp;
+
+        if debug then print( string.format(
+            "t = %2d: %08X    %08X    %08X    %08X    %08X",
+            t, A, B, C, D, E ) );
+        end
     end
 
     self[ 'H0' ] = badd( self[ 'H0' ], A );
