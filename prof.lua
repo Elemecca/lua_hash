@@ -1,19 +1,19 @@
 
-local sha1 = require( 'hash' );
+local hash = require( 'hash' );
 
 
 local data = string.rep( 'a', 1000 );
 local average, min, max;
 
-for round = 1, 100 do
+for round = 1, 5 do
     local start = os.clock();
-    local hash = sha1();
+    local inst = hash( "SHA-1" );
 
     for idx = 1, 1000 do
-        hash:feed( data );
+        inst:feed( data );
     end
 
-    hash:finish();
+    inst:finish();
 
     local elapsed = os.clock() - start;
     if nil == average then

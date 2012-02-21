@@ -58,21 +58,18 @@ local function unpack_int (value, start, bytes)
     return result;
 end
 
-local hashes_single = {};
-local hashes_chunked = {};
+local algorithms = {};
 
 ------------------------------------------------------------------------
 -- Algorithm: SHA-1                                                   -- 
 -- specified in FIPS publication 180-1 (1995-04-17)                   --
 -- http://www.itl.nist.gov/fipspubs/fip180-1.htm                      --
 ------------------------------------------------------------------------
--- This implementation is dependent on byte order within an integer and
--- thus will only behave correctly on little-endian platforms.
 
 local sha1 = {};
 sha1.__index = sha1;
 
-function sha1_new()
+algorithms[ 'SHA-1' ] = function()
     local this = {};
     setmetatable( this, sha1 );
 
@@ -87,8 +84,6 @@ function sha1_new()
 end
 
 local function sha1_block (self, block)
-    if debug then print( "start block" ); end
-
     local W00, W01, W02, W03, W04, W05, W06, W07,
             W08, W09, W10, W11, W12, W13, W14, W15;
     local A = self[ 'H0' ];
@@ -127,11 +122,6 @@ local function sha1_block (self, block)
                 W08, W09, W10, W11, W12, W13, W14, W15
             = W01, W02, W03, W04, W05, W06, W07, W08,
                 W09, W10, W11, W12, W13, W14, W15, W00;
-
-        if debug then print( string.format(
-            "t = %2d: %08X    %08X    %08X    %08X    %08X",
-            t, A, B, C, D, E ) );
-        end
     end
 
     self[ 'H0' ] = badd( self[ 'H0' ], A );
@@ -145,6 +135,13 @@ function sha1:feed (chunk)
     local length = #chunk;
     self[ 'length' ] = self[ 'length' ] + length;
     local index = 1;
+
+    -- The message padding format isn't defined for messages longer than
+    -- 2^64 bytes. It shouldn't be possible to fit a message that long
+    -- into memory, but checking doesn't hurt anything.
+    if self[ 'length' ] >= limit_64 then
+        error( "SHA-1 is not defined for messages longer than 2^64 bytes" );
+    end
     
     -- if there are leftovers from the previous call, integrate them
     local hold = self[ 'hold' ];
@@ -206,15 +203,24 @@ function sha1:result_hex()
             self[ 'H1' ], self[ 'H2' ], self[ 'H3' ], self[ 'H4' ] );
 end
 
-local function compute_sha1 (message)
-    local length = #message;
+------------------------------------------------------------------------
+-- Common Accessor Function                                           --
+------------------------------------------------------------------------
 
-    -- The message padding format isn't defined for messages longer than
-    -- 2^64 bytes. It shouldn't be possible to fit a message that long
-    -- into memory, but checking doesn't hurt anything.
-    if length >= limit_64 then
-        error( 1, "SHA-1 is not defined for messages longer than 2^64 bytes" );
+return function (algorithm, value)
+    local impl = algorithms[ algorithm ];
+    if nil == impl then
+        error( "usupported hash algoritm " .. algorithm, 2 )
     end
-end
 
-return sha1_new;
+    local hash = impl( value );
+    if type( hash ) == 'string' then
+        return hash;
+    elseif nil ~= value then
+        hash:feed( value );
+        hash:finish();
+        return hash:result_hex();
+    else
+        return hash;
+    end 
+end
